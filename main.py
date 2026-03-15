@@ -8,7 +8,7 @@ app = FastAPI(title="CSV API")
 # Enable CORS for extramart.eu and subdomains
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://([a-z0-9-]+\.)?extramart\.eu",
+    allow_origin_regex=r"https?://([a-z0-9-]+\.)?wellnet\.sk",
     allow_methods=["GET"],
     allow_headers=["*"],
 )
