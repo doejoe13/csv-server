@@ -2,5 +2,10 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+.python
+env/
+venv/
 .env
-.env.*
+.git
+.gitignore
+README.md
