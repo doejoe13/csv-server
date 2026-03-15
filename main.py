@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import csv
@@ -6,7 +7,7 @@ from pathlib import Path
 
 app = FastAPI(title="CSV API")
 
-# Allow extramart.eu and all subdomains
+# Allow extramart.eu and subdomains
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https://([a-zA-Z0-9-]+\.)?extramart\.eu",
@@ -32,7 +33,6 @@ def load_csv():
 
         for row in reader:
 
-            # convert empty strings to None
             for k, v in row.items():
                 if v == "":
                     row[k] = None
@@ -56,6 +56,31 @@ def ensure_loaded():
 
     if not data or file_mtime != last_file_mtime:
         load_csv()
+
+
+@app.get("/health")
+def health():
+    """
+    Healthcheck endpoint
+    Used by Docker / Dokploy
+    """
+    try:
+        if not csv_file.exists():
+            return {"status": "error", "reason": "csv_missing"}
+
+        ensure_loaded()
+
+        return {
+            "status": "ok",
+            "rows": len(rows),
+            "csv": str(csv_file)
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "reason": str(e)
+        }
 
 
 @app.get("/sklady/{code}")
