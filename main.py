@@ -1,107 +1,47 @@
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import csv
-import os
+import pandas as pd
 from pathlib import Path
 
 app = FastAPI(title="CSV API")
 
-# Allow extramart.eu and subdomains
+# Enable CORS for all origins (so JS can fetch from any page)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://([a-zA-Z0-9-]+\.)?extramart\.eu",
-    allow_methods=["GET"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # allow JavaScript from any domain
+    allow_methods=["GET"], # only allow GET requests
+    allow_headers=["*"],   # allow all headers
 )
 
+# Load CSV
 csv_file = Path("data") / "sklady.csv"
-
-data = {}
-rows = []
-last_file_mtime = 0
-
-
-def load_csv():
-    global data, rows, last_file_mtime
-
-    new_data = {}
-    new_rows = []
-
-    with open(csv_file, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter=";")
-
-        for row in reader:
-
-            for k, v in row.items():
-                if v == "":
-                    row[k] = None
-
-            code = row.get("code")
-
-            if code:
-                new_data[code] = row
-
-            new_rows.append(row)
-
-    data = new_data
-    rows = new_rows
-    last_file_mtime = os.path.getmtime(csv_file)
-
-
-def ensure_loaded():
-    global last_file_mtime
-
-    file_mtime = os.path.getmtime(csv_file)
-
-    if not data or file_mtime != last_file_mtime:
-        load_csv()
-
-
-@app.get("/health")
-def health():
-    """
-    Healthcheck endpoint
-    Used by Docker / Dokploy
-    """
-    try:
-        if not csv_file.exists():
-            return {"status": "error", "reason": "csv_missing"}
-
-        ensure_loaded()
-
-        return {
-            "status": "ok",
-            "rows": len(rows),
-            "csv": str(csv_file)
-        }
-
-    except Exception as e:
-        return {
-            "status": "error",
-            "reason": str(e)
-        }
-
+df = pd.read_csv(csv_file, sep=";", dtype=str, keep_default_na=False)
+df = df.replace({"": None})  # empty cells -> None
+df.set_index("code", inplace=True)
 
 @app.get("/sklady/{code}")
 def get_item(code: str):
-
-    ensure_loaded()
-
-    item = data.get(code)
-
-    if not item:
+    """Return a single row by code"""
+    try:
+        return df.loc[code].to_dict()
+    except KeyError:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    return item
-
-
 @app.get("/sklady")
-def get_items(page: int = 1, limit: int = 100):
-
-    ensure_loaded()
+def get_items(
+    pairCode: str = None,
+    name: str = None,
+    page: int = 1,
+    limit: int = 100
+):
+    """Return multiple rows with optional filters and pagination"""
+    filtered = df
+    if pairCode:
+        filtered = filtered[filtered["pairCode"] == pairCode]
+    if name:
+        filtered = filtered[filtered["name"] == name]
 
     start = (page - 1) * limit
     end = start + limit
+    return filtered.reset_index().iloc[start:end].to_dict(orient="records")
 
-    return rows[start:end]
