@@ -1,0 +1,7 @@
+services:
+  csv-api:
+    build: .
+    container_name: csv-api
+    restart: always
+    volumes:
+      - ./data:/home/csv-server/data
