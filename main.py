@@ -13,7 +13,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CSV_PATH = Path("/home/csv-server/data/sklady.csv")
+CSV_PATH = Path("./data/sklady.csv")
 
 def load_csv():
     """Load CSV on each request to reflect hourly updates."""
